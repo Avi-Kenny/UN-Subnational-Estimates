@@ -60,7 +60,7 @@ if(max(survey_years)>2018){
   end.proj.year <- 2020
 }
 
-# function that calculates population in each admin2 area ----------------------------------------------------------
+# function that calculates population in each admin area ----------------------------------------------------------
 pop_adm<-function(adm.shp, wp,admin_pop_dat){
   
   # make sure polygons have same crs as population raster
@@ -87,27 +87,6 @@ pop_adm<-function(adm.shp, wp,admin_pop_dat){
   
   return (admin_pop_dat)
 }
-
-# link across admin1 and admin2 ----------------------------------------------------------
-if(exists('poly.layer.adm2')){
-  adm_link <- unique(mod.dat[,c('admin1.name','admin2.name','admin1.char','admin2.char')])
-  admin2.names$admin2.name <- admin2.names$GADM
-  admin2.names$order <- 1:nrow(admin2.names)
-  adm_link <- merge(adm_link,admin2.names,by='admin2.name')
-  adm_link$admin2_idx<- adm_link$Internal
-  adm_link$admin1_idx <- adm_link$admin1.char
-  adm_link <- adm_link[order(adm_link$order),]
-}else{
-  adm_link <- unique(mod.dat[,c('admin1.name','admin1.char')])
-  admin1.names$admin1.name <- admin1.names$GADM
-  admin1.names$order <- 1:nrow(admin1.names)
-  adm_link <- merge(adm_link,admin1.names,by='admin1.name')
-  adm_link$admin1_idx <- adm_link$admin1.char
-  adm_link <- adm_link[order(adm_link$order),]
-}
-
-pop.year <- beg.year:2020
-pop.abbrev <- tolower(gadm.abbrev)
 
 # Download U5 population  ----------------------------------------------------------
 #### if not working, try manually download
@@ -222,7 +201,7 @@ for (year in pop.year){
 }
 
 
-# calculate weights ----------------------------------------------------------
+# Calculate weights ----------------------------------------------------------
 
 for(year in pop.year){
   
@@ -236,139 +215,69 @@ for(year in pop.year){
   # admin 2 population fraction 
   adm2_pop<-pop_adm(adm.shp=poly.adm2,
                      wp=pop_u5,
-                     admin_pop_dat=adm_link)
+                     admin_pop_dat=admin2.names)
   
-  adm2_pop$admin2_pop <- adm2_pop$admin_pop 
-  adm2_pop<-adm2_pop %>% 
-    group_by(admin1_idx) %>% 
-    mutate(admin1_pop = sum(admin2_pop))
-  
-  # fraction of admin2 w.r.t. admin1
-  adm2_pop$admin2_frac<-adm2_pop$admin2_pop/
-    adm2_pop$admin1_pop
-  
-  # sanity check, fraction for admin2 in each admin1 sum up to 1
-  aggregate(admin2_frac~admin1_idx, data = adm2_pop, FUN = sum)
-  
-  adm2.pop <- adm2_pop
-  adm2.pop$proportion <- adm2.pop$admin2_pop/sum(adm2.pop$admin2_pop)
-  adm2.pop <- adm2.pop[,c('admin2.char','proportion')]
-  colnames(adm2.pop) <- c('region','proportion')
-  adm2.pop$years <- year
+  adm2_pop$proportion <- adm2_pop$admin_pop/sum(adm2_pop$admin_pop)
+  adm2_pop <- adm2_pop[,c('Internal','proportion')]
+  colnames(adm2_pop) <- c('region','proportion')
+  adm2_pop$years <- year
   
   if(year==pop.year[1]){
-    weight.adm2.u5 <- adm2.pop
+    weight.adm2.u5 <- adm2_pop
   }else{
-    weight.adm2.u5 <- rbind(weight.adm2.u5,adm2.pop)
-  }
-  
-  ### admin-1 level population fraction w.r.t. natl population
-  adm1.pop<-adm2_pop[!duplicated(adm2_pop[,c('admin1_idx')]),]
-  # create an ordered admin1 list
-  match.order = match(paste("admin1", 1: nrow(adm1.pop), 
-                            sep = "_"), adm1.pop$admin1_idx)
-  adm1.pop = adm1.pop[match.order, ]
-  adm1.pop$proportion <-adm1.pop$admin1_pop/sum(adm1.pop$admin1_pop)
-  adm1.pop<-adm1.pop[,c('admin1.char','proportion')]
-  colnames(adm1.pop) <- c('region','proportion')
-  adm1.pop$years <- year
-  
-  if(year==pop.year[1]){
-    weight.adm1.u5 <- adm1.pop
-  }else{
-    weight.adm1.u5 <- rbind(weight.adm1.u5,adm1.pop)
+    weight.adm2.u5 <- rbind(weight.adm2.u5,adm2_pop)
   }
   
   #Under 1 (best approximation for NMR)
-  
   # admin 2 population fraction 
   adm2_pop<-pop_adm(adm.shp=poly.adm2,
-                     wp=pop_u1,
-                     admin_pop_dat=adm_link)
-  adm2_pop$admin2_pop <- adm2_pop$admin_pop 
-  
-  adm2_pop<-adm2_pop %>% 
-    group_by(admin1_idx) %>% 
-    mutate(admin1_pop = sum(admin2_pop))
-  
-  # fraction of admin2 w.r.t. admin1
-  adm2_pop$admin2_frac<-adm2_pop$admin2_pop/
-    adm2_pop$admin1_pop
-  
-  # sanity check, fraction for admin2 in each admin1 sum up to 1
-  aggregate(admin2_frac~admin1_idx, data = adm2_pop, FUN = sum)
-  
-  adm2.pop <- adm2_pop
-  adm2.pop$proportion <- adm2.pop$admin2_pop/sum(adm2.pop$admin2_pop)
-  adm2.pop <- adm2.pop[,c('admin2.char','proportion')]
-  colnames(adm2.pop) <- c('region','proportion')
-  adm2.pop$years <- year
-  
-  if(year==pop.year[1]){
-    weight.adm2.u1 <- adm2.pop
-  }else{
-    weight.adm2.u1 <- rbind(weight.adm2.u1,adm2.pop)
-  }
-  
-  ### admin-1 level population fraction w.r.t. natl population
-  adm1.pop<-adm2_pop[!duplicated(adm2_pop[,c('admin1_idx')]),]
-  # create an ordered admin1 list
-  match.order = match(paste("admin1", 1: nrow(adm1.pop), 
-                            sep = "_"), adm1.pop$admin1_idx)
-  adm1.pop = adm1.pop[match.order, ]
-  adm1.pop$proportion <-adm1.pop$admin1_pop/sum(adm1.pop$admin1_pop)
-  adm1.pop<-adm1.pop[,c('admin1.char','proportion')]
-  colnames(adm1.pop) <- c('region','proportion')
-  adm1.pop$years <- year
-  
-  if(year==pop.year[1]){
-    weight.adm1.u1 <- adm1.pop
-  }else{
-    weight.adm1.u1 <- rbind(weight.adm1.u1,adm1.pop)
-  }
-}else{
-  #Under 5
-  adm1.pop<-pop_adm(adm.shp=poly.adm1,
-                    wp=pop_u5,
-                    admin_pop_dat=adm_link)
-  
-  # create an ordered admin1 list
-  match.order = match(paste("admin1", 1: nrow(adm1.pop), 
-                            sep = "_"), adm1.pop$admin1_idx)
-  adm1.pop = adm1.pop[match.order, ]
-  adm1.pop$proportion <-adm1.pop$admin_pop/sum(adm1.pop$admin_pop)
-  adm1.pop<-adm1.pop[,c('admin1.char','proportion')]
-  colnames(adm1.pop) <- c('region','proportion')
-  adm1.pop$years <- year
-  
-  if(year==pop.year[1]){
-    weight.adm1.u5 <- adm1.pop
-  }else{
-    weight.adm1.u5 <- rbind(weight.adm1.u5,adm1.pop)
-  }
-  
-  #Under 1
-  adm1.pop<-pop_adm(adm.shp=poly.adm1,
                     wp=pop_u1,
-                    admin_pop_dat=adm_link)
+                    admin_pop_dat=admin2.names)
   
-  # create an ordered admin1 list
-  match.order = match(paste("admin1", 1: nrow(adm1.pop), 
-                            sep = "_"), adm1.pop$admin1_idx)
-  adm1.pop = adm1.pop[match.order, ]
-  adm1.pop$proportion <-adm1.pop$admin_pop/sum(adm1.pop$admin_pop)
-  adm1.pop<-adm1.pop[,c('admin1.char','proportion')]
-  colnames(adm1.pop) <- c('region','proportion')
-  adm1.pop$years <- year
+  adm2_pop$proportion <- adm2_pop$admin_pop/sum(adm2_pop$admin_pop)
+  adm2_pop <- adm2_pop[,c('Internal','proportion')]
+  colnames(adm2_pop) <- c('region','proportion')
+  adm2_pop$years <- year
   
   if(year==pop.year[1]){
-    weight.adm1.u1 <- adm1.pop
+    weight.adm2.u1 <- adm2_pop
   }else{
-    weight.adm1.u1 <- rbind(weight.adm1.u1,adm1.pop)
+    weight.adm2.u1 <- rbind(weight.adm2.u1,adm2_pop)
+  }
+}
+  #Under 5
+  # admin 1 population fraction 
+  adm1_pop<-pop_adm(adm.shp=poly.adm1,
+                    wp=pop_u5,
+                    admin_pop_dat=admin1.names)
+  
+  adm1_pop$proportion <- adm1_pop$admin_pop/sum(adm1_pop$admin_pop)
+  adm1_pop <- adm1_pop[,c('Internal','proportion')]
+  colnames(adm1_pop) <- c('region','proportion')
+  adm1_pop$years <- year
+  
+  if(year==pop.year[1]){
+    weight.adm1.u5 <- adm1_pop
+  }else{
+    weight.adm1.u5 <- rbind(weight.adm1.u5,adm1_pop)
   }
   
+  #Under 1 (best approximation for NMR)
+  # admin 1 population fraction 
+  adm1_pop<-pop_adm(adm.shp=poly.adm1,
+                    wp=pop_u1,
+                    admin_pop_dat=admin1.names)
   
-}
+  adm1_pop$proportion <- adm1_pop$admin_pop/sum(adm1_pop$admin_pop)
+  adm1_pop <- adm1_pop[,c('Internal','proportion')]
+  colnames(adm1_pop) <- c('region','proportion')
+  adm1_pop$years <- year
+  
+  if(year==pop.year[1]){
+    weight.adm1.u1 <- adm1_pop
+  }else{
+    weight.adm1.u1 <- rbind(weight.adm1.u1,adm1_pop)
+  }
   
 }
 
@@ -396,3 +305,80 @@ if(exists('poly.layer.adm2')){
 save(weight.adm2.u1,file=paste0(data.dir,'/worldpop/adm2_weights_u1.rda'))
 save(weight.adm2.u5,file=paste0(data.dir,'/worldpop/adm2_weights_u5.rda'))
 }
+
+# Get map plots of population weights ----------------------------------------------------------
+
+load(paste0(data.dir,'/worldpop/adm1_weights_u1.rda'))
+load(paste0(data.dir,'/worldpop/adm1_weights_u5.rda'))
+if(exists('poly.layer.adm2')){
+  load(paste0(data.dir,'/worldpop/adm2_weights_u1.rda'))
+  load(paste0(data.dir,'/worldpop/adm2_weights_u5.rda'))
+}
+
+pdf(paste0(data.dir,'/worldpop/admin1_u1_weights.pdf'))
+{
+  weight.adm1.u1$regionPlot <- admin1.names$GADM[match(weight.adm1.u1$region,admin1.names$Internal)]
+print(SUMMER::mapPlot(data = weight.adm1.u1,
+                      is.long = T, 
+                      variables = "years", 
+                      values = "proportion",
+                      direction = -1,
+                      geo = poly.adm1,
+                      ncol = 5,
+                      legend.label = "Population weight",
+                      per1000 = FALSE,
+                      by.data = "regionPlot",
+                      by.geo = sub(".*data[$]","",poly.label.adm1)))
+}
+dev.off()
+
+pdf(paste0(data.dir,'/worldpop/admin1_u5_weights.pdf'))
+{
+  weight.adm1.u5$regionPlot <- admin1.names$GADM[match(weight.adm1.u1$region,admin1.names$Internal)]
+  print(SUMMER::mapPlot(data = weight.adm1.u5,
+                        is.long = T, 
+                        variables = "years", 
+                        values = "proportion",
+                        direction = -1,
+                        geo = poly.adm1,
+                        ncol = 5,
+                        legend.label = "Population weight",
+                        per1000 = FALSE,
+                        by.data = "regionPlot",
+                        by.geo = sub(".*data[$]","",poly.label.adm1)))
+}
+dev.off()
+
+pdf(paste0(data.dir,'/worldpop/admin2_u1_weights.pdf'))
+{
+  weight.adm2.u1$regionPlot <- admin2.names$GADM[match(weight.adm2.u1$region,admin2.names$Internal)]
+  print(SUMMER::mapPlot(data = weight.adm2.u1,
+                        is.long = T, 
+                        variables = "years", 
+                        values = "proportion",
+                        direction = -1,
+                        geo = poly.adm2,
+                        ncol = 5,
+                        legend.label = "Population weight",
+                        per1000 = FALSE,
+                        by.data = "regionPlot",
+                        by.geo = sub(".*data[$]","",poly.label.adm2)))
+}
+dev.off()
+
+pdf(paste0(data.dir,'/worldpop/admin2_u5_weights.pdf'))
+{
+  weight.adm2.u5$regionPlot <- admin2.names$GADM[match(weight.adm2.u1$region,admin2.names$Internal)]
+  print(SUMMER::mapPlot(data = weight.adm2.u5,
+                        is.long = T, 
+                        variables = "years", 
+                        values = "proportion",
+                        direction = -1,
+                        geo = poly.adm2,
+                        ncol = 5,
+                        legend.label = "Population weight",
+                        per1000 = FALSE,
+                        by.data = "regionPlot",
+                        by.geo = sub(".*data[$]","",poly.label.adm2)))
+}
+dev.off()
