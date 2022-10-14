@@ -1,7 +1,7 @@
 rm(list = ls())
 # ENTER COUNTRY OF INTEREST -----------------------------------------------
 # Please capitalize the first letter of the country name and replace " " in the country name to "_" if there is.
-country <- 'Angola'
+country <- 'Liberia'
 
 # Load libraries and info ----------------------------------------------------------
 options(gsubfn.engine = "R")
@@ -27,11 +27,11 @@ info.name <- paste0(country, "_general_info.Rdata")
 load(file = paste0(home.dir,'/Info/',info.name, sep='')) # load the country info
 
 # set API to get DHS data -- you will need to change this to your information!
-set_rdhs_config(email = "amcgov@uw.edu",
-                project = "Spatial Modeling for Subnational Administrative Level 2 Small-Area Estimation - Under 5 Mortality Rate")
+set_rdhs_config(email = "akenny@lastmilehealth.org",
+                project = "Mortality estimates for a cluster sample survey")
 
-update_rdhs_config(email = "amcgov@uw.edu", password = T,
-                project = "Spatial Modeling for Subnational Administrative Level 2 Small-Area Estimation - Under 5 Mortality Rate")
+update_rdhs_config(email = "akenny@lastmilehealth.org", password = T,
+                project = "Mortality estimates for a cluster sample survey")
 
 
 # Load polygon files ----------------------------------------------------------
