@@ -2,7 +2,7 @@ rm(list=ls())
 
 # ENTER COUNTRY OF INTEREST AND FINAL ESTIMATE INFO -----------------------------------------------
 # Please capitalize the first letter of the country name and replace " " in the country name to "_" if there is.
-country <- 'Malawi'
+country <- 'Liberia'
 
 ## Setup -----------------------------------------------
 #### Load libraries and info ----------------------------------------------------------
@@ -11,6 +11,9 @@ country <- 'Malawi'
 options(gsubfn.engine = "R")
 library(rgdal)
 library(Rfast)
+library(ggplot2)
+library(magrittr)
+library(SUMMER)
 
 # extract file location of this script
 code.path <- rstudioapi::getActiveDocumentContext()$path
