@@ -47,7 +47,7 @@ load(paste0(poly.path,'/', country, '_Amat_Names.rda'))
 
 load(paste0(country,'_cluster_dat.rda'),
      envir = .GlobalEnv)
-survey_years <- unique(mod.dat$survey)
+survey_years <- sort(unique(mod.dat$survey))
 
 # Define periods for 3-year estimates ------------------------------------------------------
 #### adjusted slightly when number of years is not divisible by 3
@@ -592,10 +592,11 @@ if(exists("poly.layer.adm2")){
 
 # Smoothed direct estimates  ------------------------------------------------------
 
-  time.model <- c('rw2','ar1')[2]
+  time.model <- c('rw2','ar1')[1]
   
 ## load in appropriate direct estimates  ------------------------------------------------------
-if(doHIVAdj){
+  setwd(paste0(res.dir,'/Direct'))
+  if(doHIVAdj){
   load(paste0('U5MR/',country, '_directHIV_natl_u5.rda'))
   load(paste0('U5MR/',country, '_directHIV_natl_yearly_u5.rda'))
   load(paste0('U5MR/',country, '_directHIV_admin1_u5.rda'))
@@ -651,12 +652,7 @@ if(exists("poly.layer.adm2")){
 
 
 ## extend periods to include projected years  ------------------------------------------------------
-if(max(survey_years)>2018){
-  end.proj.year <- 2022
-}else{
-  end.proj.year <- 2020
-}
-
+end.proj.year <- 2021
 beg.proj.years <- seq(end.year+1,end.proj.year,3)
 end.proj.years <- beg.proj.years+2
 proj.per <- paste(beg.proj.years, end.proj.years, sep = "-") # add the 3-year period to be projected
@@ -671,7 +667,7 @@ periods <- c(periods,proj.per)
 fit.natl.u5 <- smoothDirect(data.natl.u5, Amat = NULL, # national level model doesn't need to specify adjacency matrix since it would just be 1.
                      year_label = c(periods), time.model = time.model,
                      year_range = c(beg.year, max(end.proj.years)),
-                     control.inla = list(strategy = "adaptive", int.strategy = "eb"), is.yearly = F) # fit the smoothed direct model. Changing the year label and year range can change the years the estimators to be computed, 
+                     control.inla = list(strategy = "adaptive", int.strategy = "auto"), is.yearly = F) # fit the smoothed direct model. Changing the year label and year range can change the years the estimators to be computed, 
 ## even for future years where DHS data is not yet available. But this would lead to less accurate estimates and larger uncertainty level.
 
  res.natl.u5 <- getSmoothed(fit.natl.u5,year_range = c(beg.year, max(end.proj.years)),
@@ -685,7 +681,7 @@ fit.natl.u5 <- smoothDirect(data.natl.u5, Amat = NULL, # national level model do
  fit.natl.nmr <- smoothDirect(data.natl.nmr, geo = NULL, Amat = NULL, # national level model doesn't need to specify adjacency matrix since it would just be 1.
                              year_label = c(periods),
                              year_range = c(beg.year, max(end.proj.years)),time.model = time.model,
-                             control.inla = list(strategy = "adaptive", int.strategy = "eb"),
+                             control.inla = list(strategy = "adaptive", int.strategy = "auto"),
                              is.yearly = F) # fit the smoothed direct model. Changing the year label and year range can change the years the estimators to be computed, 
  ## even for future years where DHS data is not yet available. But this would lead to less accurate estimates and larger uncertainty level.
  
@@ -703,7 +699,7 @@ fit.natl.u5 <- smoothDirect(data.natl.u5, Amat = NULL, # national level model do
 fit.natl.yearly.u5 <- smoothDirect(data.natl.yearly.u5, geo = NULL, Amat = NULL,
                            year_label = as.character(beg.year:max(end.proj.years)),
                            year_range = c(beg.year, max(end.proj.years)), time.model = time.model,
-                           control.inla = list(strategy = "adaptive", int.strategy = "eb"),  is.yearly = F)
+                           control.inla = list(strategy = "adaptive", int.strategy = "auto"),  is.yearly = F)
 res.natl.yearly.u5 <- getSmoothed(fit.natl.yearly.u5, year_range = c(beg.year, max(end.proj.years)),
                                year_label = as.character(beg.year:max(end.proj.years)))
 res.natl.yearly.u5$years.num <- beg.year:max(end.proj.years)
@@ -714,7 +710,7 @@ save(res.natl.yearly.u5, file = paste0('U5MR/',country, "_res_natl_", time.model
 fit.natl.yearly.nmr <- smoothDirect(data.natl.yearly.nmr, geo = NULL, Amat = NULL,
                                    year_label = as.character(beg.year:max(end.proj.years)), time.model = time.model,
                                    year_range = c(beg.year, max(end.proj.years)), 
-                                   control.inla = list(strategy = "adaptive", int.strategy = "eb"), is.yearly = F)
+                                   control.inla = list(strategy = "adaptive", int.strategy = "auto"), is.yearly = F)
 res.natl.yearly.nmr <- getSmoothed(fit.natl.yearly.nmr, year_range = c(beg.year, max(end.proj.years)),
                                   year_label = as.character(beg.year:max(end.proj.years)))
 res.natl.yearly.nmr$years.num <- beg.year:max(end.proj.years)
@@ -1237,29 +1233,33 @@ dev.off()
 
 ## Load IGME estimates ------------------------------------------------------
 {
-setwd(paste0(home.dir,'/Data/IGME'))
-
-## U5MR
-igme.ests.u5 <- read.csv(paste0(country.abbrev,'_u5_igme_est.csv'), header = T)
-names(igme.ests.u5) <- c('year','OBS_VALUE','LOWER_BOUND','UPPER_BOUND')
-igme.ests.u5$year <- igme.ests.u5$year-0.5
-igme.ests.u5$OBS_VALUE <- igme.ests.u5$OBS_VALUE/1000
-igme.ests.u5 <- igme.ests.u5[igme.ests.u5$year %in% beg.year:end.proj.year,]
-igme.ests.u5 <- igme.ests.u5[order(igme.ests.u5$year),]
-igme.ests.u5$SD <- (igme.ests.u5$UPPER_BOUND - igme.ests.u5$LOWER_BOUND)/(2*1.645*1000)
-igme.ests.u5$LOWER_BOUND <- igme.ests.u5$OBS_VALUE - 1.96*igme.ests.u5$SD
-igme.ests.u5$UPPER_BOUND <- igme.ests.u5$OBS_VALUE + 1.96*igme.ests.u5$SD
-
-## NMR
-igme.ests.nmr <- read.csv(paste0(country.abbrev,'_nmr_igme_est.csv'),  header = T)
-names(igme.ests.nmr) <- c('year','OBS_VALUE','LOWER_BOUND','UPPER_BOUND')
-igme.ests.nmr$year <- igme.ests.nmr$year-0.5
-igme.ests.nmr$OBS_VALUE <- igme.ests.nmr$OBS_VALUE/1000
-igme.ests.nmr <- igme.ests.nmr[igme.ests.nmr$year %in% beg.year:end.proj.year,]
-igme.ests.nmr <- igme.ests.nmr[order(igme.ests.nmr$year),]
-igme.ests.nmr$SD <- (igme.ests.nmr$UPPER_BOUND - igme.ests.nmr$LOWER_BOUND)/(2*1.645*1000)
-igme.ests.nmr$LOWER_BOUND <- igme.ests.nmr$OBS_VALUE - 1.96*igme.ests.nmr$SD
-igme.ests.nmr$UPPER_BOUND <- igme.ests.nmr$OBS_VALUE + 1.96*igme.ests.nmr$SD
+  setwd(paste0(home.dir,'/Data/IGME'))
+  
+  ## U5MR
+  igme.ests.u5.raw <- read.csv('igme2022_u5.csv')
+  igme.ests.u5 <- igme.ests.u5.raw[igme.ests.u5.raw$ISO.Code==gadm.abbrev,]
+  igme.ests.u5 <- data.frame(t(igme.ests.u5[,10:ncol(igme.ests.u5)]))
+  names(igme.ests.u5) <- c('LOWER_BOUND','OBS_VALUE','UPPER_BOUND')
+  igme.ests.u5$year <-  as.numeric(stringr::str_remove(row.names(igme.ests.u5),'X')) - 0.5
+  igme.ests.u5 <- igme.ests.u5[igme.ests.u5$year %in% beg.year:end.proj.year,]
+  rownames(igme.ests.u5) <- NULL
+  igme.ests.u5$OBS_VALUE <- igme.ests.u5$OBS_VALUE/1000
+  igme.ests.u5$SD <- (igme.ests.u5$UPPER_BOUND - igme.ests.u5$LOWER_BOUND)/(2*1.645*1000)
+  igme.ests.u5$LOWER_BOUND <- igme.ests.u5$OBS_VALUE - 1.96*igme.ests.u5$SD
+  igme.ests.u5$UPPER_BOUND <- igme.ests.u5$OBS_VALUE + 1.96*igme.ests.u5$SD
+  
+  ## NMR
+  igme.ests.nmr.raw <- read.csv('igme2022_nmr.csv')
+  igme.ests.nmr <- igme.ests.nmr.raw[igme.ests.nmr.raw$iso==gadm.abbrev,]
+  igme.ests.nmr <- data.frame(t(igme.ests.nmr[,10:ncol(igme.ests.nmr)]))
+  names(igme.ests.nmr) <- c('LOWER_BOUND','OBS_VALUE','UPPER_BOUND')
+  igme.ests.nmr$year <-  as.numeric(stringr::str_remove(row.names(igme.ests.nmr),'X')) - 0.5
+  igme.ests.nmr <- igme.ests.nmr[igme.ests.nmr$year %in% beg.year:end.proj.year,]
+  rownames(igme.ests.nmr) <- NULL
+  igme.ests.nmr$OBS_VALUE <- igme.ests.nmr$OBS_VALUE/1000
+  igme.ests.nmr$SD <- (igme.ests.nmr$UPPER_BOUND - igme.ests.nmr$LOWER_BOUND)/(2*1.645*1000)
+  igme.ests.nmr$LOWER_BOUND <- igme.ests.nmr$OBS_VALUE - 1.96*igme.ests.nmr$SD
+  igme.ests.nmr$UPPER_BOUND <- igme.ests.nmr$OBS_VALUE + 1.96*igme.ests.nmr$SD
 }
 
 ## National, 3-year period ------------------------------------------------------
