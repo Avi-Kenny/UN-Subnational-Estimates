@@ -24,20 +24,8 @@ load(file = paste0(home.dir,'/Info/',info.name, sep='')) # load the country info
 source(file=paste0(home.dir, '/Rcode/getBB8.R'))
 source(file=paste0(home.dir, '/Rcode/smoothCluster_mod.R'))
 
-## Load polygon files -----------------------------------------------
+## Load admin names -----------------------------------------------
 setwd(data.dir)
-
-poly.adm0 <- readOGR(dsn = poly.path,
-                     layer = as.character(poly.layer.adm0)) # load the national shape file
-poly.adm1 <- readOGR(dsn = poly.path,
-                     layer = as.character(poly.layer.adm1)) # load the shape file of admin-1 regions
-if(exists('poly.layer.adm2')){
-  poly.adm2 <- readOGR(dsn = poly.path,
-                       layer = as.character(poly.layer.adm2)) # load the shape file of admin-2 regions
-  proj4string(poly.adm0) <- proj4string(poly.adm1) <- proj4string(poly.adm2)
-}else{
-  proj4string(poly.adm0) <- proj4string(poly.adm1)
-}
 
 load(paste0(poly.path,'/', country, '_Amat.rda'))
 load(paste0(poly.path,'/', country, '_Amat_Names.rda'))
@@ -56,7 +44,7 @@ end.proj.year <- 2021
   setwd(paste0(home.dir,'/Data/IGME'))
   
   ## U5MR
-  igme.ests.u5.raw <- read.csv('igme2022_u5.csv')
+  igme.ests.u5.raw <- read.csv('igme2022_u5_nocrisis.csv')
   igme.ests.u5 <- igme.ests.u5.raw[igme.ests.u5.raw$ISO.Code==gadm.abbrev,]
   igme.ests.u5 <- data.frame(t(igme.ests.u5[,10:ncol(igme.ests.u5)]))
   names(igme.ests.u5) <- c('LOWER_BOUND','OBS_VALUE','UPPER_BOUND')
@@ -69,7 +57,7 @@ end.proj.year <- 2021
   igme.ests.u5$UPPER_BOUND <- igme.ests.u5$OBS_VALUE + 1.96*igme.ests.u5$SD
   
   ## NMR
-  igme.ests.nmr.raw <- read.csv('igme2022_nmr.csv')
+  igme.ests.nmr.raw <- read.csv('igme2022_nmr_nocrisis.csv')
   igme.ests.nmr <- igme.ests.nmr.raw[igme.ests.nmr.raw$iso==gadm.abbrev,]
   igme.ests.nmr <- data.frame(t(igme.ests.nmr[,10:ncol(igme.ests.nmr)]))
   names(igme.ests.nmr) <- c('LOWER_BOUND','OBS_VALUE','UPPER_BOUND')
@@ -86,7 +74,7 @@ end.proj.year <- 2021
 
 load(paste0(data.dir,'/worldpop/adm1_weights_u1.rda'))
 load(paste0(data.dir,'/worldpop/adm1_weights_u5.rda'))
-if(exists('poly.adm2')){
+if(exists('poly.layer.adm2')){
 load(paste0(data.dir,'/worldpop/adm2_weights_u1.rda'))
 load(paste0(data.dir,'/worldpop/adm2_weights_u5.rda'))
 }
@@ -166,7 +154,7 @@ if(dir.exists(paths = paste0(res.dir,'/UR/'))){
   weight.strata.natl.u1$rural <- 1-weight.strata.natl.u1$urban
   weight.strata.adm1.u1 <- readRDS(paste0('U1_fraction/','admin1_u1_urban_weights.rds'))
   
-  if(exists('poly.adm2')){
+  if(exists('poly.layer.adm2')){
   weight.strata.adm2.u5 <- readRDS(paste0('U5_fraction/','admin2_u5_urban_weights.rds'))
   weight.strata.adm2.u1 <- readRDS(paste0('U1_fraction/','admin2_u1_urban_weights.rds'))
   }
@@ -191,7 +179,7 @@ if(dir.exists(paths = paste0(res.dir,'/UR/'))){
                                               years=sort(rep(2021:end.proj.year,nrow(admin1.names))),
                                               urban=rep(weight.strata.adm1.u5[weight.strata.adm1.u5$years==2020,]$urban,end.proj.year-2020),
                                               rural=1-rep(weight.strata.adm1.u5[weight.strata.adm1.u5$years==2020,]$urban,end.proj.year-2020)))
-    if(exists('poly.adm2')){
+    if(exists('poly.layer.adm2')){
     weight.strata.adm2.u1 <- rbind(weight.strata.adm2.u1,
                                    data.frame(region=rep(admin2.names$Internal,end.proj.year-2020),
                                               years=sort(rep(2021:end.proj.year,nrow(admin2.names))),
@@ -208,7 +196,7 @@ if(dir.exists(paths = paste0(res.dir,'/UR/'))){
     weight.strata.natl.u5 <- weight.strata.natl.u5[weight.strata.natl.u5$years<=end.proj.year,]
     weight.strata.adm1.u1 <- weight.strata.adm1.u1[weight.strata.adm1.u1$years<=end.proj.year,]
     weight.strata.adm1.u5 <- weight.strata.adm1.u5[weight.strata.adm1.u5$years<=end.proj.year,]
-    if(exists('poly.adm2')){
+    if(exists('poly.layer.adm2')){
     weight.strata.adm2.u1 <- weight.strata.adm2.u1[weight.strata.adm2.u1$years<=end.proj.year,]
     weight.strata.adm2.u5 <- weight.strata.adm2.u5[weight.strata.adm2.u5$years<=end.proj.year,]
     }
@@ -709,6 +697,35 @@ save(bb.res.adm2.unstrat.u5,file=paste0('Betabinomial/U5MR/',country,'_res_adm2_
   mod.dat$years <- as.numeric(as.character(mod.dat$years))
   mod.dat$country <- as.character(country)
   survey_years <- unique(mod.dat$survey)
+
+## Load HIV Adjustment info -----------------------------------------------
+  
+  if(doHIVAdj){
+    load(paste0(home.dir,'/Data/HIV/',
+                'HIVAdjustments.rda'),
+         envir = .GlobalEnv)
+    hiv.adj <- hiv.adj[hiv.adj$country == country,]
+    if(unique(hiv.adj$area)[1] == country){
+      natl.unaids <- T
+    }else{
+      natl.unaids <- F}
+    
+    if(natl.unaids){
+      adj.frame <- hiv.adj
+      adj.varnames <- c("country", "survey", "years")
+    }else{ adj.frame <- hiv.adj
+    mod.dat$area <- mod.dat$admin1.name
+    if(country=='Mozambique'){
+      mod.dat[mod.dat$area=='Maputo City',]$area <- 'Maputo'
+    }
+    adj.varnames <- c("country", "area","survey", "years")
+    }
+    adj.frame <- adj.frame[adj.frame$survey %in% survey_years,c(adj.varnames,"ratio")]
+  }else{
+    adj.frame <- expand.grid(years = beg.year:end.proj.year,country = country)
+    adj.frame$ratio <- 1
+    adj.varnames <- c("country", "years")
+  }
   
 ### NMR -----------------------------------------------
   setwd(paste0(res.dir))

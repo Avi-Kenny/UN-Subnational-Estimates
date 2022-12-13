@@ -65,9 +65,7 @@ if(country=='Uganda'){
   merge.dat <- poly.adm2@data %>% group_by(ADM1_EN) %>% summarise(n = n(), 
               ADM1_PCODE = unique(ADM1_PCODE))
   poly.adm1 <- SpatialPolygonsDataFrame(poly.adm1, merge.dat)
-  writeOGR(poly.adm1,dsn = poly.path,layer = as.character(poly.layer.adm1),
-           driver="ESRI Shapefile",overwrite_layer = T)
-
+ 
 }
 
 # Create Adjacency Matrix ----------------------------------------------------------
